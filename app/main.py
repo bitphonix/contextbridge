@@ -1,5 +1,8 @@
-from ddtrace import patch_all
-patch_all()
+try:
+    from ddtrace import patch_all
+    patch_all()
+except ImportError:
+    pass
 
 import sentry_sdk
 import os

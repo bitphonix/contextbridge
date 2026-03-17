@@ -10,3 +10,4 @@ python-dotenv==1.0.1
 typing-extensions==4.12.2
 pytest==9.0.2
 pytest-cov==7.0.0
+ddtrace==4.6.0
