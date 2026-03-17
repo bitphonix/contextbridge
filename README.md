@@ -39,13 +39,13 @@ ContextBridge runs a **4-node LangGraph pipeline** with a self-correcting reflec
 ```
 User pastes conversation
         ↓
-┌─────────────────────────────────────────────────────┐
+┌──────────────────────────────────────────────────────┐
 │                  LangGraph Pipeline                  │
 │                                                      │
 │  [Classifier] → [Extractor] → [Compressor] → [Critic]│
 │                      ↑__________________|            │
 │                   reflection loop (max 2 retries)    │
-└─────────────────────────────────────────────────────┘
+└──────────────────────────────────────────────────────┘
         ↓
   Session Brain (5 fields) + Ready-to-paste Briefing
         ↓
@@ -220,4 +220,4 @@ ContextBridge is a user-facing tool that works *on top of* any AI conversation, 
 
 ---
 
-Built by [Your Name](https://github.com/YOUR_USERNAME) · [LinkedIn](https://linkedin.com/in/YOUR_PROFILE)
+Built by [Tanishk](https://github.com/bitphonix) · [LinkedIn](https://linkedin.com/in/tanishk-soni-a94077239)
