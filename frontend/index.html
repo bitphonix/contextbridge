@@ -1,0 +1,703 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>ContextBridge</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Syne:wght@400;600;700&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0d0d0d;
+      --bg2:       #141414;
+      --bg3:       #1c1c1c;
+      --border:    #2a2a2a;
+      --border2:   #383838;
+      --text:      #e8e6e0;
+      --muted:     #6b6860;
+      --amber:     #f0a500;
+      --amber-dim: #7a5200;
+      --green:     #3ecf8e;
+      --red:       #f04040;
+      --mono:      'IBM Plex Mono', monospace;
+      --sans:      'Syne', sans-serif;
+    }
+
+    html, body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      font-size: 15px;
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+      pointer-events: none;
+      z-index: 1000;
+      opacity: 0.5;
+    }
+
+    .shell {
+      max-width: 860px;
+      margin: 0 auto;
+      padding: 0 24px 80px;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 32px 0 48px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 48px;
+    }
+
+    .logo {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+    }
+
+    .logo-mark {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--amber);
+      background: var(--amber-dim);
+      padding: 3px 7px;
+      border-radius: 3px;
+      letter-spacing: 0.08em;
+    }
+
+    .logo-name {
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: var(--text);
+    }
+
+    .header-tag {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--muted);
+      letter-spacing: 0.05em;
+    }
+
+    .section-label {
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 0.15em;
+      color: var(--muted);
+      text-transform: uppercase;
+      margin-bottom: 12px;
+    }
+
+    .input-block {
+      margin-bottom: 32px;
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 220px;
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 13px;
+      line-height: 1.7;
+      padding: 18px 20px;
+      resize: vertical;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+
+    textarea:focus {
+      border-color: var(--border2);
+    }
+
+    textarea::placeholder {
+      color: var(--muted);
+    }
+
+    .controls {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-top: 12px;
+    }
+
+    .btn-extract {
+      font-family: var(--mono);
+      font-size: 12px;
+      font-weight: 500;
+      letter-spacing: 0.06em;
+      color: #0d0d0d;
+      background: var(--amber);
+      border: none;
+      border-radius: 4px;
+      padding: 10px 24px;
+      cursor: pointer;
+      transition: opacity 0.15s, transform 0.1s;
+    }
+
+    .btn-extract:hover { opacity: 0.88; }
+    .btn-extract:active { transform: scale(0.98); }
+    .btn-extract:disabled { opacity: 0.35; cursor: not-allowed; }
+
+    .char-count {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--muted);
+      margin-left: auto;
+    }
+
+    .status-bar {
+      display: none;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 16px;
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      margin-bottom: 32px;
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .status-bar.visible { display: flex; }
+
+    .spinner {
+      width: 14px;
+      height: 14px;
+      border: 1.5px solid var(--border2);
+      border-top-color: var(--amber);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      flex-shrink: 0;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .status-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .status-dot.green { background: var(--green); }
+    .status-dot.red   { background: var(--red); }
+
+    #result {
+      display: none;
+      animation: fadeUp 0.3s ease;
+    }
+
+    #result.visible { display: block; }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(10px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .meta-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 28px;
+    }
+
+    .domain-badge {
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--amber);
+      background: var(--amber-dim);
+      padding: 3px 9px;
+      border-radius: 3px;
+    }
+
+    .score-badge {
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 0.05em;
+      color: var(--green);
+      border: 1px solid #1a5c3a;
+      padding: 3px 9px;
+      border-radius: 3px;
+    }
+
+    .brain-id {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--muted);
+      margin-left: auto;
+    }
+
+    .brain-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1px;
+      background: var(--border);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      overflow: hidden;
+      margin-bottom: 24px;
+    }
+
+    .brain-cell {
+      background: var(--bg2);
+      padding: 20px 22px;
+    }
+
+    .brain-cell.full { grid-column: 1 / -1; }
+
+    .cell-label {
+      font-family: var(--mono);
+      font-size: 9px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 10px;
+    }
+
+    .cell-value {
+      font-size: 14px;
+      line-height: 1.65;
+      color: var(--text);
+    }
+
+    .cell-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+    }
+
+    .cell-list li {
+      font-size: 13px;
+      line-height: 1.55;
+      color: var(--text);
+      padding-left: 16px;
+      position: relative;
+    }
+
+    .cell-list li::before {
+      content: '—';
+      position: absolute;
+      left: 0;
+      color: var(--muted);
+      font-family: var(--mono);
+    }
+
+    .cell-list.dead li::before {
+      content: '✕';
+      color: var(--red);
+      font-size: 10px;
+      top: 2px;
+    }
+
+    .cell-list.steps li::before {
+      content: counter(step);
+      counter-increment: step;
+      color: var(--amber);
+      font-family: var(--mono);
+      font-size: 10px;
+      top: 3px;
+    }
+
+    .cell-list.steps { counter-reset: step; }
+
+    .briefing-block {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      overflow: hidden;
+      margin-bottom: 48px;
+    }
+
+    .briefing-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 18px;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg3);
+    }
+
+    .briefing-header span {
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .btn-copy {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--amber);
+      background: transparent;
+      border: 1px solid var(--amber-dim);
+      border-radius: 3px;
+      padding: 4px 12px;
+      cursor: pointer;
+      transition: background 0.15s;
+      letter-spacing: 0.04em;
+    }
+
+    .btn-copy:hover { background: var(--amber-dim); }
+
+    .briefing-text {
+      padding: 20px 22px;
+      font-size: 14px;
+      line-height: 1.75;
+      color: #c8c6c0;
+      font-family: var(--mono);
+      white-space: pre-wrap;
+    }
+
+    .past-section {
+      border-top: 1px solid var(--border);
+      padding-top: 40px;
+    }
+
+    .past-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+
+    .btn-load {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--muted);
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      padding: 5px 12px;
+      cursor: pointer;
+      transition: border-color 0.15s, color 0.15s;
+    }
+
+    .btn-load:hover { border-color: var(--border2); color: var(--text); }
+
+    .past-list {
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+      background: var(--border);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      overflow: hidden;
+    }
+
+    .past-item {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 14px 18px;
+      background: var(--bg2);
+      cursor: pointer;
+      transition: background 0.12s;
+    }
+
+    .past-item:hover { background: var(--bg3); }
+
+    .past-domain {
+      font-family: var(--mono);
+      font-size: 9px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--amber);
+      width: 120px;
+      flex-shrink: 0;
+    }
+
+    .past-goal {
+      font-size: 13px;
+      color: var(--text);
+      flex: 1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .past-date {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--muted);
+      flex-shrink: 0;
+    }
+
+    .empty-state {
+      padding: 32px;
+      text-align: center;
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 24px 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 60px;
+    }
+
+    footer span {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--muted);
+      letter-spacing: 0.05em;
+    }
+
+    @media (max-width: 600px) {
+      .brain-grid { grid-template-columns: 1fr; }
+      .brain-cell.full { grid-column: 1; }
+    }
+  </style>
+</head>
+<body>
+<div class="shell">
+
+  <header>
+    <div class="logo">
+      <span class="logo-mark">CB</span>
+      <span class="logo-name">ContextBridge</span>
+    </div>
+    <span class="header-tag">context portability layer // v0.1</span>
+  </header>
+
+  <div class="input-block">
+    <div class="section-label">paste conversation</div>
+    <textarea id="conv-input"
+      placeholder="Paste your AI conversation here — from Claude, ChatGPT, Gemini, or any other tool.&#10;&#10;The pipeline will extract your goal, decisions, dead ends, current state, and next steps, then generate a ready-to-paste briefing for your next session."></textarea>
+    <div class="controls">
+      <button class="btn-extract" id="btn-extract" onclick="runExtract()">
+        extract brain
+      </button>
+      <span class="char-count" id="char-count">0 chars</span>
+    </div>
+  </div>
+
+  <div class="status-bar" id="status-bar">
+    <div class="spinner" id="status-spinner"></div>
+    <div class="status-dot green" id="status-dot" style="display:none"></div>
+    <span id="status-text">running extraction pipeline…</span>
+  </div>
+
+  <div id="result">
+    <div class="meta-row">
+      <span class="domain-badge" id="r-domain">—</span>
+      <span class="score-badge" id="r-score">score —</span>
+      <span class="brain-id" id="r-id">—</span>
+    </div>
+
+    <div class="brain-grid">
+      <div class="brain-cell full">
+        <div class="cell-label">goal</div>
+        <div class="cell-value" id="r-goal">—</div>
+      </div>
+      <div class="brain-cell">
+        <div class="cell-label">decisions locked in</div>
+        <ul class="cell-list" id="r-decisions"></ul>
+      </div>
+      <div class="brain-cell">
+        <div class="cell-label">dead ends</div>
+        <ul class="cell-list dead" id="r-dead-ends"></ul>
+      </div>
+      <div class="brain-cell full">
+        <div class="cell-label">current state</div>
+        <div class="cell-value" id="r-current-state">—</div>
+      </div>
+      <div class="brain-cell full">
+        <div class="cell-label">next steps</div>
+        <ul class="cell-list steps" id="r-next-steps"></ul>
+      </div>
+    </div>
+
+    <div class="briefing-block">
+      <div class="briefing-header">
+        <span>ready-to-paste briefing</span>
+        <button class="btn-copy" onclick="copyBriefing()">copy</button>
+      </div>
+      <div class="briefing-text" id="r-briefing">—</div>
+    </div>
+  </div>
+
+  <div class="past-section">
+    <div class="past-header">
+      <div class="section-label" style="margin-bottom:0">past sessions</div>
+      <button class="btn-load" onclick="loadPastBrains()">load</button>
+    </div>
+    <div id="past-list-container">
+      <div class="empty-state">click load to fetch past sessions</div>
+    </div>
+  </div>
+
+  <footer>
+    <span>contextbridge — agentic context portability</span>
+    <span id="pipeline-time"></span>
+  </footer>
+
+</div>
+
+<script>
+  const API = 'http://localhost:8000';
+
+  document.getElementById('conv-input').addEventListener('input', function() {
+    document.getElementById('char-count').textContent =
+      this.value.length.toLocaleString() + ' chars';
+  });
+
+  async function runExtract() {
+    const conv = document.getElementById('conv-input').value.trim();
+    if (conv.length < 100) {
+      showStatus('error', 'conversation too short — paste at least a few messages');
+      return;
+    }
+
+    const btn = document.getElementById('btn-extract');
+    btn.disabled = true;
+    document.getElementById('result').classList.remove('visible');
+    showStatus('loading', 'running extraction pipeline…');
+
+    const start = Date.now();
+
+    try {
+      const res = await fetch(`${API}/extract`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ conversation: conv, user_id: 'user_web' }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.detail || 'extraction failed');
+      }
+
+      const data = await res.json();
+      const elapsed = ((Date.now() - start) / 1000).toFixed(1);
+
+      renderResult(data);
+      showStatus('success', `extracted in ${elapsed}s — critic score ${data.critic_score}/10`);
+      document.getElementById('pipeline-time').textContent =
+        `last run: ${elapsed}s`;
+
+    } catch (e) {
+      showStatus('error', e.message);
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  function renderResult(d) {
+    document.getElementById('r-domain').textContent = d.domain.replace('_', ' ');
+    document.getElementById('r-score').textContent = `critic score ${d.critic_score}/10`;
+    document.getElementById('r-id').textContent = `id: ${d.brain_id}`;
+    document.getElementById('r-goal').textContent = d.goal;
+    document.getElementById('r-current-state').textContent = d.current_state;
+    document.getElementById('r-briefing').textContent = d.briefing;
+
+    renderList('r-decisions',  d.decisions);
+    renderList('r-dead-ends',  d.dead_ends.length ? d.dead_ends : ['none recorded']);
+    renderList('r-next-steps', d.next_steps);
+
+    document.getElementById('result').classList.add('visible');
+    document.getElementById('result').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function renderList(id, items) {
+    const el = document.getElementById(id);
+    el.innerHTML = items.map(i => `<li>${escHtml(i)}</li>`).join('');
+  }
+
+  function escHtml(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  function showStatus(type, msg) {
+    const bar     = document.getElementById('status-bar');
+    const spinner = document.getElementById('status-spinner');
+    const dot     = document.getElementById('status-dot');
+    const text    = document.getElementById('status-text');
+
+    bar.classList.add('visible');
+    text.textContent = msg;
+
+    if (type === 'loading') {
+      spinner.style.display = 'block';
+      dot.style.display = 'none';
+    } else {
+      spinner.style.display = 'none';
+      dot.style.display = 'block';
+      dot.className = 'status-dot ' + (type === 'success' ? 'green' : 'red');
+    }
+  }
+
+  async function copyBriefing() {
+    const text = document.getElementById('r-briefing').textContent;
+    await navigator.clipboard.writeText(text);
+    const btn = document.querySelector('.btn-copy');
+    btn.textContent = 'copied';
+    setTimeout(() => btn.textContent = 'copy', 1500);
+  }
+
+  async function loadPastBrains() {
+    const container = document.getElementById('past-list-container');
+    container.innerHTML = '<div class="empty-state">loading…</div>';
+
+    try {
+      const res  = await fetch(`${API}/brains`);
+      const data = await res.json();
+
+      if (!data.length) {
+        container.innerHTML = '<div class="empty-state">no past sessions found</div>';
+        return;
+      }
+
+      const list = document.createElement('div');
+      list.className = 'past-list';
+
+      data.forEach(b => {
+        const item = document.createElement('div');
+        item.className = 'past-item';
+        item.onclick = () => renderResult(b);
+
+        const date = b.created_at
+          ? new Date(b.created_at).toLocaleDateString('en-IN', {
+              day: 'numeric', month: 'short', year: '2-digit'
+            })
+          : '—';
+
+        item.innerHTML = `
+          <span class="past-domain">${(b.domain || '—').replace('_', ' ')}</span>
+          <span class="past-goal">${escHtml(b.goal || '—')}</span>
+          <span class="past-date">${date}</span>
+        `;
+        list.appendChild(item);
+      });
+
+      container.innerHTML = '';
+      container.appendChild(list);
+
+    } catch (e) {
+      container.innerHTML = `<div class="empty-state">error: ${e.message}</div>`;
+    }
+  }
+</script>
+</body>
+</html>
